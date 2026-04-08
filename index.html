@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>砖块消消乐</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main id="app" class="app-shell" data-screen="lobby">
+      <section id="lobby-screen" class="screen lobby-screen is-active" aria-label="游戏大厅">
+        <div class="brick-curtain brick-curtain-top" aria-hidden="true"></div>
+        <div class="brick-curtain brick-curtain-bottom" aria-hidden="true"></div>
+        <div class="lobby-stage">
+          <button id="battle-entry-btn" class="poster-frame poster-entry-btn" type="button" aria-label="对战入口">
+            <div class="poster-art">
+              <span class="poster-sun"></span>
+              <span class="poster-ribbon">开始</span>
+            </div>
+            <div class="event-timer">01d 06h</div>
+          </button>
+
+          <div class="calendar-card" aria-label="每日挑战">
+            <div class="calendar-meta">
+              <span class="calendar-icon">▣</span>
+              <span>四月 8</span>
+            </div>
+            <button id="daily-btn" class="primary-btn blue" type="button">每日挑战</button>
+          </div>
+
+          <button id="continue-btn" class="primary-btn orange" type="button">开始游戏</button>
+
+          <div class="difficulty-panel" aria-label="机器人难度选择">
+            <div class="difficulty-title">机器人难度</div>
+            <div class="difficulty-options">
+              <button class="difficulty-btn" data-difficulty="high" type="button">高</button>
+              <button class="difficulty-btn is-active" data-difficulty="medium" type="button">中</button>
+              <button class="difficulty-btn" data-difficulty="low" type="button">低</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="game-screen" class="screen game-screen" aria-label="游戏界面">
+        <div class="hud-bar">
+          <button id="back-btn" class="icon-btn" type="button" aria-label="返回大厅">‹</button>
+          <div class="coin-chip">金币 0</div>
+        </div>
+
+        <div id="battle-status-bar" class="battle-status-bar" aria-label="对战模式状态栏">
+          <div class="status-side left">
+            <div class="status-head">
+              <div class="avatar-wrap">
+                <div id="player-avatar" class="status-avatar" aria-hidden="true">👩</div>
+                <span id="player-plus-bubble" class="plus-bubble" aria-hidden="true">+</span>
+              </div>
+              <span id="player-id" class="status-id">Player_27AAA2</span>
+            </div>
+            <div class="status-meta">
+              <span id="player-score" class="status-score">0</span>
+              <div id="player-hearts" class="status-hearts" aria-label="玩家容错次数">❤❤❤</div>
+            </div>
+          </div>
+
+          <div class="status-center">
+            <span id="battle-timer" class="status-timer">00:00</span>
+          </div>
+
+          <div class="status-side right">
+            <div class="status-head">
+              <span id="opponent-id" class="status-id">NAYELI</span>
+              <div class="avatar-wrap">
+                <div id="opponent-avatar" class="status-avatar" aria-hidden="true">👩</div>
+                <span id="opponent-plus-bubble" class="plus-bubble" aria-hidden="true">+</span>
+              </div>
+            </div>
+            <div class="status-meta">
+              <div id="opponent-hearts" class="status-hearts" aria-label="对手容错次数">❤❤❤</div>
+              <span id="opponent-score" class="status-score">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="game-board" aria-label="9列20行棋盘占位">
+          <div class="board-viewport" aria-hidden="true">
+            <div class="tile-grid" aria-label="9列20行网格棋盘"></div>
+          </div>
+        </div>
+
+        <nav class="bottom-dock" aria-label="游戏操作栏">
+          <button id="plus-tool-btn" type="button" class="dock-btn plus">+</button>
+          <button id="hint-tool-btn" type="button" class="dock-btn calm">提示</button>
+        </nav>
+
+        <div id="battle-lose-overlay" class="battle-lose-overlay" aria-hidden="true">
+          <div class="battle-lose-card" role="dialog" aria-label="对战失败">
+            <div class="lose-stars">★ ★</div>
+            <div class="lose-rank-badge"><span>1</span></div>
+            <p class="lose-title">You Lose The Battle!</p>
+            <div class="lose-stats">
+              <span>Wins <strong id="lose-wins">0</strong></span>
+              <span class="divider" aria-hidden="true"></span>
+              <span>Losses <strong id="lose-losses">1</strong></span>
+            </div>
+            <button id="lose-new-game-btn" class="result-main-btn" type="button">NEW GAME 🎫1</button>
+            <button id="lose-home-btn" class="result-link-btn" type="button">HOMEPAGE</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="victory-screen" class="screen victory-screen" aria-label="胜利结算界面">
+        <div class="victory-surface">
+          <div class="victory-bunting" aria-hidden="true"></div>
+          <div class="victory-rays" aria-hidden="true"></div>
+          <div class="victory-confetti" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="victory-stars">★ ☆</div>
+          <div class="victory-rank-badge"><span>1</span></div>
+          <div class="victory-streak">1 winning streak</div>
+          <div class="victory-progress"><span class="fill"></span><span class="star">★</span></div>
+          <div class="victory-stats">
+            <span>Wins <strong id="victory-wins">1</strong></span>
+            <span class="divider" aria-hidden="true"></span>
+            <span>Losses <strong id="victory-losses">0</strong></span>
+          </div>
+          <button id="victory-new-game-btn" class="result-main-btn" type="button">NEW GAME 🎫1</button>
+          <button id="victory-home-btn" class="result-link-btn" type="button">HOMEPAGE</button>
+        </div>
+      </section>
+
+      <section id="battle-screen" class="screen battle-screen" aria-label="对战界面">
+        <div class="battle-surface">
+          <header class="battle-top">
+            <h2 class="battle-title">Battle</h2>
+            <div class="battle-top-actions">
+              <button type="button" class="battle-mini-btn" aria-label="设置">☆</button>
+              <button id="battle-close-btn" type="button" class="battle-mini-btn" aria-label="返回大厅">↩</button>
+            </div>
+          </header>
+
+          <div class="battle-rival-row">
+            <div class="rival-avatar" aria-hidden="true">👩</div>
+            <div class="rival-chip">
+              <strong>Jan</strong>
+              <span>Ends in: 2d 8h</span>
+            </div>
+            <div class="ticket-chip">
+              <span>🎫</span>
+              <strong>5</strong>
+              <button type="button" aria-label="增加门票">+</button>
+            </div>
+          </div>
+
+          <div class="battle-center">
+            <div class="battle-stars">★ ★</div>
+            <div class="rank-badge"><span>1</span></div>
+            <div class="rank-stage"></div>
+          </div>
+
+          <div class="battle-stats">
+            <span>Wins <strong>0</strong></span>
+            <span class="divider" aria-hidden="true"></span>
+            <span>Losses <strong>0</strong></span>
+          </div>
+
+          <button id="match-btn" class="match-btn" type="button">
+            <span>Match</span>
+            <span class="cost">🎫 1</span>
+          </button>
+        </div>
+
+        <div id="match-overlay" class="match-overlay" aria-hidden="true">
+          <div class="match-card" role="dialog" aria-label="匹配中">
+            <div class="match-side match-side-left">
+              <div class="match-avatar" aria-hidden="true">👩</div>
+              <div class="match-name">Player_27AA</div>
+              <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+            </div>
+            <div class="match-vs">VS</div>
+            <div class="match-side match-side-right">
+              <div class="match-avatar" aria-hidden="true">👨</div>
+              <div class="match-name">helmbert</div>
+              <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
