@@ -10,6 +10,8 @@ const battleEntryBtn = document.querySelector('#battle-entry-btn');
 const battleCloseBtn = document.querySelector('#battle-close-btn');
 const matchBtn = document.querySelector('#match-btn');
 const matchOverlay = document.querySelector('#match-overlay');
+const matchTimerEl = document.querySelector('#match-timer');
+const cancelMatchBtn = document.querySelector('#cancel-match-btn');
 const plusToolBtn = document.querySelector('#plus-tool-btn');
 const hintToolBtn = document.querySelector('#hint-tool-btn');
 const battleStatusBar = document.querySelector('#battle-status-bar');
@@ -28,6 +30,8 @@ const victoryLossesEl = document.querySelector('#victory-losses');
 const victoryNewGameBtn = document.querySelector('#victory-new-game-btn');
 const victoryHomeBtn = document.querySelector('#victory-home-btn');
 const difficultyBtns = Array.from(document.querySelectorAll('.difficulty-btn'));
+const gameBoardEl = document.querySelector('.game-board');
+const boardViewport = document.querySelector('.board-viewport');
 const tileGrid = document.querySelector('.tile-grid');
 const playerPlusBubble = document.querySelector('#player-plus-bubble');
 const opponentPlusBubble = document.querySelector('#opponent-plus-bubble');
@@ -36,12 +40,9 @@ const BOARD_COLS = 9;
 const BOARD_ROWS = 20;
 const BOARD_VISIBLE_ROWS = 10;
 const INITIAL_NUMBERS = 35;
-const MAX_MISTAKES = 3;
 const MAX_BOARD_CELLS = BOARD_COLS * BOARD_ROWS;
 const MATCHING_MS = 3000;
-const BOT_PLUS_TRIGGER_REMAINING = 15;
-const BOT_PLUS_CHANCE = 0.2;
-const BOT_PLUS_MAX_USES = 5;
+const PLUS_TOOL_MAX_USES = 5;
 
 const BOT_DIFFICULTY_CONFIG = {
   high: {
@@ -84,10 +85,17 @@ const state = {
 };
 
 let matchingTimer = null;
+let matchingClockTimer = null;
+let matchingStartedAt = 0;
 let battleClockTimer = null;
 let botActionTimer = null;
 let playerBubbleTimer = null;
 let opponentBubbleTimer = null;
+let boardTouchActive = false;
+let boardTouchMoved = false;
+let boardTouchStartY = 0;
+let boardTouchStartScrollTop = 0;
+let boardTouchSuppressClickUntil = 0;
 
 function formatTime(totalSeconds) {
   const minutes = Math.floor(totalSeconds / 60);
@@ -95,10 +103,40 @@ function formatTime(totalSeconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function heartsText(mistakes) {
-  const remaining = Math.max(0, MAX_MISTAKES - mistakes);
-  const spent = MAX_MISTAKES - remaining;
-  return `${'❤'.repeat(remaining)}${'♡'.repeat(spent)}`;
+function renderPlusStock(targetEl, usedCount) {
+  if (!targetEl) return;
+  const used = Math.max(0, Math.min(PLUS_TOOL_MAX_USES, usedCount));
+  const icons = Array.from({ length: PLUS_TOOL_MAX_USES }, (_, idx) => {
+    const spent = idx < used ? 'is-spent' : '';
+    return `<span class="status-plus-icon ${spent}" aria-hidden="true">+</span>`;
+  }).join('');
+  targetEl.innerHTML = icons;
+}
+
+function updatePlusToolButton() {
+  if (!plusToolBtn) return;
+  if (!state.battleMode || !state.battle || state.battle.ended) {
+    plusToolBtn.disabled = false;
+    return;
+  }
+  plusToolBtn.disabled = state.battle.playerPlusUses >= PLUS_TOOL_MAX_USES;
+}
+
+function updateBoardMetrics() {
+  if (!gameBoardEl) return;
+
+  const styles = window.getComputedStyle(gameBoardEl);
+  const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+  const paddingRight = parseFloat(styles.paddingRight) || 0;
+  const paddingTop = parseFloat(styles.paddingTop) || 0;
+  const borderSize = 4;
+  const minCellSize = 20;
+  const maxCellSize = 56;
+  const widthLimit = Math.floor((gameBoardEl.clientWidth - paddingLeft - paddingRight - borderSize) / BOARD_COLS);
+  const heightLimit = Math.floor((gameBoardEl.clientHeight - paddingTop - borderSize) / BOARD_VISIBLE_ROWS);
+  const cellSize = Math.max(minCellSize, Math.min(widthLimit, heightLimit, maxCellSize));
+
+  gameBoardEl.style.setProperty('--cell-size', `${cellSize}px`);
 }
 
 function showPlusBubble(side) {
@@ -130,6 +168,12 @@ function hideMatchOverlay() {
     clearTimeout(matchingTimer);
     matchingTimer = null;
   }
+  if (matchingClockTimer) {
+    clearInterval(matchingClockTimer);
+    matchingClockTimer = null;
+  }
+  matchingStartedAt = 0;
+  if (matchTimerEl) matchTimerEl.textContent = '匹配中 00:00';
 }
 
 function hideLoseOverlay() {
@@ -168,19 +212,14 @@ function getRemainingCount() {
 
 function updateBattleStatusUI() {
   if (!state.battleMode || !state.battle) return;
-  const {
-    playerRemaining,
-    opponentRemaining,
-    playerMistakes,
-    opponentMistakes,
-    elapsedSec,
-  } = state.battle;
+  const { playerRemaining, opponentRemaining, playerPlusUses, opponentPlusUses, elapsedSec } = state.battle;
 
   if (playerScoreEl) playerScoreEl.textContent = String(playerRemaining);
   if (opponentScoreEl) opponentScoreEl.textContent = String(opponentRemaining);
-  if (playerHeartsEl) playerHeartsEl.textContent = heartsText(playerMistakes);
-  if (opponentHeartsEl) opponentHeartsEl.textContent = heartsText(opponentMistakes);
+  renderPlusStock(playerHeartsEl, playerPlusUses);
+  renderPlusStock(opponentHeartsEl, opponentPlusUses);
   if (battleTimerEl) battleTimerEl.textContent = formatTime(elapsedSec);
+  updatePlusToolButton();
 }
 
 function setBattleMode(active) {
@@ -192,6 +231,7 @@ function setBattleMode(active) {
     state.battle = null;
     stopBattleTimers();
   }
+  updatePlusToolButton();
 }
 
 function finishBattle(winner) {
@@ -216,9 +256,23 @@ function finishBattle(winner) {
 
 function applyBotPlus() {
   if (!state.battle || state.battle.ended) return false;
-  if (state.battle.botPlusUses >= BOT_PLUS_MAX_USES) return false;
-  if (state.battle.opponentRemaining >= BOT_PLUS_TRIGGER_REMAINING) return false;
-  if (Math.random() >= BOT_PLUS_CHANCE) return false;
+  if (state.battle.opponentPlusUses >= PLUS_TOOL_MAX_USES) return false;
+  const remaining = state.battle.opponentRemaining;
+  let chance = 0;
+
+  if (remaining === 1) {
+    chance = 1;
+  } else if (remaining >= 2 && remaining <= 5) {
+    chance = 0.3;
+  } else if (remaining >= 6 && remaining <= 15) {
+    chance = 0.25;
+  } else if (remaining >= 16 && remaining <= 25) {
+    chance = 0.2;
+  } else {
+    return false;
+  }
+
+  if (Math.random() >= chance) return false;
 
   const capacityLeft = Math.max(0, MAX_BOARD_CELLS - state.battle.opponentRemaining);
   if (capacityLeft <= 0) return false;
@@ -227,7 +281,7 @@ function applyBotPlus() {
   if (addCount <= 0) return false;
 
   state.battle.opponentRemaining += addCount;
-  state.battle.botPlusUses += 1;
+  state.battle.opponentPlusUses += 1;
   showPlusBubble('opponent');
   return true;
 }
@@ -242,19 +296,10 @@ function runBotTurn() {
     return;
   }
 
-  const roll = Math.random();
-  if (config.canMistake && roll < 0.16) {
-    state.battle.opponentMistakes += 1;
-    if (state.battle.opponentMistakes >= MAX_MISTAKES) {
-      finishBattle('player');
-      return;
-    }
-  } else {
-    state.battle.opponentRemaining = Math.max(0, state.battle.opponentRemaining - 2);
-    if (state.battle.opponentRemaining === 0) {
-      finishBattle('opponent');
-      return;
-    }
+  state.battle.opponentRemaining = Math.max(0, state.battle.opponentRemaining - 2);
+  if (state.battle.opponentRemaining === 0) {
+    finishBattle('opponent');
+    return;
   }
 
   updateBattleStatusUI();
@@ -268,12 +313,11 @@ function startBattleSession() {
     initialTotal,
     playerRemaining: initialTotal,
     opponentRemaining: initialTotal,
-    playerMistakes: 0,
-    opponentMistakes: 0,
+    playerPlusUses: 0,
+    opponentPlusUses: 0,
     elapsedSec: 0,
     ended: false,
     winner: null,
-    botPlusUses: 0,
   };
 
   updateBattleStatusUI();
@@ -301,13 +345,15 @@ function syncPlayerBattleProgress() {
 }
 
 function applyPlayerMistake() {
+  // Battle mode no longer has mistake-limit defeat; keep board interaction behavior unchanged.
   if (!state.battleMode || !state.battle || state.battle.ended) return;
-  state.battle.playerMistakes += 1;
-  if (state.battle.playerMistakes >= MAX_MISTAKES) {
-    finishBattle('opponent');
-    return;
-  }
-  updateBattleStatusUI();
+}
+
+function updateMatchTimerText() {
+  if (!matchTimerEl || !matchingStartedAt) return;
+  const elapsedMs = Date.now() - matchingStartedAt;
+  const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  matchTimerEl.textContent = `匹配中 ${formatTime(elapsedSeconds)}`;
 }
 
 function startMatching() {
@@ -316,8 +362,15 @@ function startMatching() {
 
   matchOverlay.classList.add('is-active');
   matchOverlay.setAttribute('aria-hidden', 'false');
+  matchingStartedAt = Date.now();
+  updateMatchTimerText();
 
   if (matchingTimer) clearTimeout(matchingTimer);
+  if (matchingClockTimer) clearInterval(matchingClockTimer);
+  matchingClockTimer = setInterval(() => {
+    updateMatchTimerText();
+  }, 250);
+
   matchingTimer = setTimeout(() => {
     hideMatchOverlay();
     enterGame(true);
@@ -520,6 +573,12 @@ function getLastFilledIndex() {
 
 function duplicateRemainingNumbersAtTail(source = 'player') {
   if (state.battleMode && state.battle && state.battle.ended) return;
+  if (state.battleMode && state.battle && source === 'player') {
+    if (state.battle.playerPlusUses >= PLUS_TOOL_MAX_USES) {
+      updatePlusToolButton();
+      return;
+    }
+  }
 
   const remaining = getRemainingNumbers();
   if (remaining.length === 0) return;
@@ -535,7 +594,8 @@ function duplicateRemainingNumbersAtTail(source = 'player') {
   state.hintIndexes = [];
   renderBoardValues();
 
-  if (source === 'player' && state.battleMode && state.battle && !state.battle.ended) {
+  if (state.battleMode && state.battle && !state.battle.ended && source === 'player') {
+    state.battle.playerPlusUses += 1;
     showPlusBubble('player');
   }
 
@@ -560,8 +620,45 @@ function showHintPair() {
   renderBoardValues();
 }
 
+function setupBoardTouchScroll() {
+  if (!boardViewport) return;
+
+  boardViewport.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+    boardTouchActive = true;
+    boardTouchMoved = false;
+    boardTouchStartY = event.touches[0].clientY;
+    boardTouchStartScrollTop = boardViewport.scrollTop;
+  }, { passive: true });
+
+  boardViewport.addEventListener('touchmove', (event) => {
+    if (!boardTouchActive || event.touches.length !== 1) return;
+    const currentY = event.touches[0].clientY;
+    const deltaY = currentY - boardTouchStartY;
+
+    if (Math.abs(deltaY) > 6) {
+      boardTouchMoved = true;
+    }
+
+    boardViewport.scrollTop = boardTouchStartScrollTop - deltaY;
+    event.preventDefault();
+  }, { passive: false });
+
+  const endTouchScroll = () => {
+    if (boardTouchActive && boardTouchMoved) {
+      boardTouchSuppressClickUntil = Date.now() + 220;
+    }
+    boardTouchActive = false;
+    boardTouchMoved = false;
+  };
+
+  boardViewport.addEventListener('touchend', endTouchScroll);
+  boardViewport.addEventListener('touchcancel', endTouchScroll);
+}
+
 function handleBoardClick(event) {
   if (state.battleMode && state.battle && state.battle.ended) return;
+  if (Date.now() < boardTouchSuppressClickUntil) return;
 
   const target = event.target.closest('.cell');
   if (!target) return;
@@ -610,8 +707,10 @@ function enterGame(isBattleMode) {
   hideLoseOverlay();
   setBattleMode(isBattleMode);
   initializeBoardValues();
-  renderBoardValues();
   showScreen('game');
+  updateBoardMetrics();
+  if (boardViewport) boardViewport.scrollTop = 0;
+  renderBoardValues();
   if (isBattleMode) startBattleSession();
 }
 
@@ -635,13 +734,14 @@ if (backBtn) backBtn.addEventListener('click', () => showScreen('lobby'));
 if (battleEntryBtn) battleEntryBtn.addEventListener('click', () => showScreen('battle'));
 if (battleCloseBtn) battleCloseBtn.addEventListener('click', () => showScreen('lobby'));
 if (matchBtn) matchBtn.addEventListener('click', () => startMatching());
+if (cancelMatchBtn) cancelMatchBtn.addEventListener('click', () => hideMatchOverlay());
 if (tileGrid) tileGrid.addEventListener('click', (event) => handleBoardClick(event));
 if (plusToolBtn) plusToolBtn.addEventListener('click', () => duplicateRemainingNumbersAtTail('player'));
 if (hintToolBtn) hintToolBtn.addEventListener('click', () => showHintPair());
 if (loseNewGameBtn) loseNewGameBtn.addEventListener('click', () => startRematchFlow());
-if (loseHomeBtn) loseHomeBtn.addEventListener('click', () => showScreen('lobby'));
+if (loseHomeBtn) loseHomeBtn.addEventListener('click', () => showScreen('battle'));
 if (victoryNewGameBtn) victoryNewGameBtn.addEventListener('click', () => startRematchFlow());
-if (victoryHomeBtn) victoryHomeBtn.addEventListener('click', () => showScreen('lobby'));
+if (victoryHomeBtn) victoryHomeBtn.addEventListener('click', () => showScreen('battle'));
 
 difficultyBtns.forEach((btn) => {
   btn.addEventListener('click', () => setBotDifficulty(btn.dataset.difficulty));
@@ -668,8 +768,14 @@ window.advanceTime = (ms = 16) => {
   return window.render_game_to_text();
 };
 
+window.addEventListener('resize', () => {
+  updateBoardMetrics();
+});
+
 showScreen('lobby');
 setBotDifficulty(state.botDifficulty);
 buildBoardCells();
 initializeBoardValues();
+updateBoardMetrics();
 renderBoardValues();
+setupBoardTouchScroll();

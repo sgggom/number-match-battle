@@ -298,12 +298,15 @@ button {
   --board-cols: 9;
   --board-rows: 20;
   --board-visible-rows: 10;
-  --cell-size: min(9.2vw, 38px);
+  --cell-size: 40px;
+  --board-inline-padding: 12px;
+  --board-top-padding: 10px;
   position: absolute;
-  inset: 72px 0 116px;
+  inset: 72px 0 108px;
   display: grid;
   place-items: start center;
-  padding-top: 66px;
+  padding-top: var(--board-top-padding);
+  padding-inline: var(--board-inline-padding);
   overflow: hidden;
 }
 
@@ -330,7 +333,8 @@ button {
 }
 
 .game-screen.battle-mode .game-board {
-  inset: 152px 0 116px;
+  --board-top-padding: 6px;
+  inset: 148px 0 108px;
 }
 
 .status-side {
@@ -449,10 +453,9 @@ button {
 }
 
 .status-hearts {
-  font-size: 13px;
-  line-height: 1;
-  color: #ec5454;
-  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
@@ -460,6 +463,26 @@ button {
 
 .status-side.right .status-hearts {
   text-align: right;
+  justify-content: flex-end;
+}
+
+.status-plus-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #30b35f;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900;
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .16);
+}
+
+.status-plus-icon.is-spent {
+  background: #b7bdc6;
+  color: #f4f6f8;
 }
 
 .status-center {
@@ -487,36 +510,57 @@ button {
 .board-viewport {
   position: relative;
   z-index: 3;
-  width: calc(var(--board-cols) * var(--cell-size));
-  height: calc(var(--board-visible-rows) * var(--cell-size));
+  width: calc((var(--board-cols) * var(--cell-size)) + 4px);
+  height: calc((var(--board-visible-rows) * var(--cell-size)) + 4px);
   border: 2px solid rgba(168, 108, 65, .9);
   background: rgba(255, 255, 255, .44);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.45);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .tile-grid {
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 100%;
+  position: relative;
+  inset: auto;
+  width: calc(var(--board-cols) * var(--cell-size));
   height: calc(var(--board-rows) * var(--cell-size));
   display: grid;
-  grid-template-columns: repeat(var(--board-cols), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--board-cols), var(--cell-size));
   grid-template-rows: repeat(var(--board-rows), var(--cell-size));
   background-image:
     linear-gradient(to right, rgba(140, 122, 100, .22) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(140, 122, 100, .22) 1px, transparent 1px);
-  background-size: calc(100% / var(--board-cols)) var(--cell-size);
+  background-size: var(--cell-size) var(--cell-size);
   background-position: -1px -1px;
   pointer-events: auto;
 }
 
+.board-viewport::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.board-viewport::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
 .tile-grid .cell {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cell-size);
+  height: var(--cell-size);
   color: rgba(91, 62, 43, .88);
   font-size: clamp(18px, 3.8vw, 28px);
   font-weight: 900;
+  line-height: 1;
+  padding: 0;
   user-select: none;
   cursor: pointer;
   transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
@@ -546,15 +590,20 @@ button {
   bottom: 24px;
   z-index: 5;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, 64px);
+  justify-content: center;
+  gap: 20px;
 }
 
 .dock-btn {
-  height: 58px;
-  border-radius: 18px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
   font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
-  font-size: 22px;
+  font-size: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
 .dock-btn.danger {
@@ -566,13 +615,20 @@ button {
 }
 
 .dock-btn.calm {
-  background: linear-gradient(180deg, #7ee0b8, #26ae89);
+  background: linear-gradient(180deg, #ffd96d, #f2ab33);
 }
 
 .dock-btn.plus {
-  font-size: 44px;
+  font-size: 40px;
   line-height: 1;
   background: linear-gradient(180deg, #ffb56c, #f28737);
+}
+
+.dock-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(1);
+  opacity: .55;
+  transform: none;
 }
 
 .battle-screen {
@@ -795,6 +851,13 @@ button {
   transition: opacity 180ms ease;
 }
 
+.match-overlay-content {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  justify-items: stretch;
+}
+
 .match-overlay.is-active {
   opacity: 1;
   pointer-events: auto;
@@ -802,7 +865,7 @@ button {
 
 .match-card {
   position: relative;
-  width: min(100%, 360px);
+  width: 100%;
   min-height: 176px;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -861,6 +924,36 @@ button {
   font-weight: 900;
   font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
   text-shadow: 0 5px 0 rgba(84, 45, 24, .32);
+}
+
+.match-controls {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+.match-timer {
+  min-width: 132px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  text-align: center;
+  color: #fff8ef;
+  font-size: 16px;
+  font-weight: 900;
+  background: rgba(36, 29, 24, .56);
+}
+
+.cancel-match-btn {
+  min-width: 132px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: #fff9ef;
+  font-size: 18px;
+  font-weight: 900;
+  font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
+  background: linear-gradient(180deg, #f08b79, #d56453);
+  box-shadow: inset 0 -3px 0 rgba(116, 45, 38, .32), 0 6px 12px rgba(30, 23, 19, .28);
 }
 
 .battle-lose-overlay {
@@ -1117,8 +1210,9 @@ button {
   }
 
   .game-board {
-    --cell-size: min(10vw, 34px);
-    padding-top: 58px;
+    --board-inline-padding: 8px;
+    --board-top-padding: 8px;
+    inset: 70px 0 104px;
   }
 
   .battle-status-bar {
@@ -1131,7 +1225,8 @@ button {
   }
 
   .game-screen.battle-mode .game-board {
-    inset: 148px 0 116px;
+    --board-top-padding: 4px;
+    inset: 144px 0 104px;
   }
 
   .status-id {
@@ -1143,7 +1238,13 @@ button {
   }
 
   .status-hearts {
-    font-size: 12px;
+    gap: 3px;
+  }
+
+  .status-plus-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 11px;
   }
 
   .status-timer {
@@ -1190,6 +1291,11 @@ button {
     min-height: 154px;
   }
 
+  .match-overlay-content {
+    width: min(100%, 332px);
+    gap: 10px;
+  }
+
   .match-name {
     font-size: 20px;
   }
@@ -1202,9 +1308,36 @@ button {
     font-size: 62px;
   }
 
+  .match-timer {
+    font-size: 14px;
+    min-width: 120px;
+    padding: 6px 10px;
+  }
+
+  .cancel-match-btn {
+    min-width: 120px;
+    min-height: 34px;
+    font-size: 16px;
+  }
+
   .battle-lose-card {
     gap: 10px;
     padding: 14px 14px 12px;
+  }
+
+  .bottom-dock {
+    grid-template-columns: repeat(2, 58px);
+    gap: 16px;
+  }
+
+  .dock-btn {
+    width: 58px;
+    height: 58px;
+    font-size: 28px;
+  }
+
+  .dock-btn.plus {
+    font-size: 36px;
   }
 
   .lose-stars {

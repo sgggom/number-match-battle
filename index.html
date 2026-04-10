@@ -61,7 +61,13 @@
             </div>
             <div class="status-meta">
               <span id="player-score" class="status-score">0</span>
-              <div id="player-hearts" class="status-hearts" aria-label="玩家容错次数">❤❤❤</div>
+              <div id="player-hearts" class="status-hearts" aria-label="玩家加号道具数量">
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+              </div>
             </div>
           </div>
 
@@ -78,7 +84,13 @@
               </div>
             </div>
             <div class="status-meta">
-              <div id="opponent-hearts" class="status-hearts" aria-label="对手容错次数">❤❤❤</div>
+              <div id="opponent-hearts" class="status-hearts" aria-label="对手加号道具数量">
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+                <span class="status-plus-icon" aria-hidden="true">+</span>
+              </div>
               <span id="opponent-score" class="status-score">0</span>
             </div>
           </div>
@@ -91,8 +103,8 @@
         </div>
 
         <nav class="bottom-dock" aria-label="游戏操作栏">
-          <button id="plus-tool-btn" type="button" class="dock-btn plus">+</button>
-          <button id="hint-tool-btn" type="button" class="dock-btn calm">提示</button>
+          <button id="plus-tool-btn" type="button" class="dock-btn plus" aria-label="加号道具">+</button>
+          <button id="hint-tool-btn" type="button" class="dock-btn calm" aria-label="提示道具">💡</button>
         </nav>
 
         <div id="battle-lose-overlay" class="battle-lose-overlay" aria-hidden="true">
@@ -175,17 +187,23 @@
         </div>
 
         <div id="match-overlay" class="match-overlay" aria-hidden="true">
-          <div class="match-card" role="dialog" aria-label="匹配中">
-            <div class="match-side match-side-left">
-              <div class="match-avatar" aria-hidden="true">👩</div>
-              <div class="match-name">Player_27AA</div>
-              <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+          <div class="match-overlay-content">
+            <div class="match-card" role="dialog" aria-label="匹配中">
+              <div class="match-side match-side-left">
+                <div class="match-avatar" aria-hidden="true">👩</div>
+                <div class="match-name">Player_27AA</div>
+                <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+              </div>
+              <div class="match-vs">VS</div>
+              <div class="match-side match-side-right">
+                <div class="match-avatar" aria-hidden="true">👨</div>
+                <div class="match-name">helmbert</div>
+                <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+              </div>
             </div>
-            <div class="match-vs">VS</div>
-            <div class="match-side match-side-right">
-              <div class="match-avatar" aria-hidden="true">👨</div>
-              <div class="match-name">helmbert</div>
-              <div class="match-record">Wins 0&nbsp;&nbsp;Losses 0</div>
+            <div class="match-controls" aria-label="匹配控制">
+              <div id="match-timer" class="match-timer">匹配中 00:00</div>
+              <button id="cancel-match-btn" type="button" class="cancel-match-btn">取消匹配</button>
             </div>
           </div>
         </div>
