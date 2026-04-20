@@ -421,11 +421,14 @@ function applyPairScore(indexA, indexB, beforePairValues, afterPairValues) {
 
   if (newlyClearedRows > 0) {
     totalBaseScore += (newlyClearedRows * SCORE_RULES.lineClear);
-  }
-
-  if (state.battle && !state.battle.ended) {
-    state.battle.comboStreak = Math.min(3, (state.battle.comboStreak || 0) + 1);
-    totalBaseScore += getPerfectBonusByStreak(state.battle.comboStreak);
+    if (state.battle && !state.battle.ended) {
+      // Perfect 仅在“连续操作且连续消行”时触发。
+      state.battle.comboStreak = Math.min(3, (state.battle.comboStreak || 0) + 1);
+      totalBaseScore += getPerfectBonusByStreak(state.battle.comboStreak);
+    }
+  } else if (state.battle && !state.battle.ended) {
+    // 普通消除（未消行）会中断 perfect 连续层数。
+    state.battle.comboStreak = 0;
   }
 
   addPlayerScore(totalBaseScore);
