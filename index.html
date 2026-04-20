@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
@@ -25,7 +25,7 @@
 
           <div class="calendar-card" aria-label="每日挑战">
             <div class="calendar-meta">
-              <span class="calendar-icon">▣</span>
+              <span class="calendar-icon">◆</span>
               <span>四月 8</span>
             </div>
             <button id="daily-btn" class="primary-btn blue" type="button">每日挑战</button>
@@ -46,7 +46,8 @@
 
       <section id="game-screen" class="screen game-screen" aria-label="游戏界面">
         <div class="hud-bar">
-          <button id="back-btn" class="icon-btn" type="button" aria-label="返回大厅">‹</button>
+          <button id="back-btn" class="icon-btn" type="button" aria-label="返回大厅">←</button>
+          <span id="battle-target" class="hud-target">Target --</span>
           <div class="coin-chip">金币 0</div>
         </div>
 
@@ -61,12 +62,8 @@
             </div>
             <div class="status-meta">
               <span id="player-score" class="status-score">0</span>
-              <div id="player-hearts" class="status-hearts" aria-label="玩家加号道具数量">
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
+              <div class="status-progress" aria-hidden="true">
+                <span id="player-progress-fill" class="status-progress-fill"></span>
               </div>
             </div>
           </div>
@@ -84,21 +81,17 @@
               </div>
             </div>
             <div class="status-meta">
-              <div id="opponent-hearts" class="status-hearts" aria-label="对手加号道具数量">
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
-                <span class="status-plus-icon" aria-hidden="true">+</span>
+              <div class="status-progress" aria-hidden="true">
+                <span id="opponent-progress-fill" class="status-progress-fill"></span>
               </div>
               <span id="opponent-score" class="status-score">0</span>
             </div>
           </div>
         </div>
 
-        <div class="game-board" aria-label="9列20行棋盘占位">
+        <div class="game-board" aria-label="游戏棋盘">
           <div class="board-viewport" aria-hidden="true">
-            <div class="tile-grid" aria-label="9列20行网格棋盘"></div>
+            <div class="tile-grid" aria-label="数字网格棋盘"></div>
           </div>
         </div>
 
@@ -109,7 +102,7 @@
 
         <div id="battle-lose-overlay" class="battle-lose-overlay" aria-hidden="true">
           <div class="battle-lose-card" role="dialog" aria-label="对战失败">
-            <div class="lose-stars">★ ★</div>
+            <div class="lose-stars">★★</div>
             <div class="lose-rank-badge"><span>1</span></div>
             <p class="lose-title">You Lose The Battle!</p>
             <div class="lose-stats">
@@ -131,7 +124,7 @@
             <span></span><span></span><span></span><span></span><span></span><span></span>
             <span></span><span></span><span></span><span></span><span></span><span></span>
           </div>
-          <div class="victory-stars">★ ☆</div>
+          <div class="victory-stars">★★</div>
           <div class="victory-rank-badge"><span>1</span></div>
           <div class="victory-streak">1 winning streak</div>
           <div class="victory-progress"><span class="fill"></span><span class="star">★</span></div>
@@ -150,8 +143,8 @@
           <header class="battle-top">
             <h2 class="battle-title">Battle</h2>
             <div class="battle-top-actions">
-              <button type="button" class="battle-mini-btn" aria-label="设置">☆</button>
-              <button id="battle-close-btn" type="button" class="battle-mini-btn" aria-label="返回大厅">↩</button>
+              <button type="button" class="battle-mini-btn" aria-label="设置">⚙</button>
+              <button id="battle-close-btn" type="button" class="battle-mini-btn" aria-label="返回大厅">→</button>
             </div>
           </header>
 
@@ -169,7 +162,7 @@
           </div>
 
           <div class="battle-center">
-            <div class="battle-stars">★ ★</div>
+            <div class="battle-stars">★★</div>
             <div class="rank-badge"><span>1</span></div>
             <div class="rank-stage"></div>
           </div>
@@ -213,3 +206,5 @@
     <script src="./main.js"></script>
   </body>
 </html>
+
+

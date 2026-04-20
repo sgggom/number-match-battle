@@ -268,6 +268,25 @@ button {
   padding: 16px 18px;
 }
 
+.hud-target {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .02em;
+  color: #8d5638;
+  text-shadow: 0 2px 0 rgba(255, 245, 227, .7);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.game-screen.battle-mode .hud-target {
+  opacity: 1;
+}
+
 .icon-btn,
 .coin-chip,
 .dock-btn {
@@ -416,6 +435,35 @@ button {
   transform: translateY(0) scale(1);
 }
 
+.score-popups {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.score-popup {
+  position: absolute;
+  translate: -50% 0;
+  min-width: 42px;
+  padding: 4px 10px 5px;
+  border-radius: 999px;
+  text-align: center;
+  font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fffaf0;
+  background: linear-gradient(180deg, #ffa94f, #f36e2a);
+  box-shadow: 0 3px 0 rgba(120, 62, 30, .28), 0 5px 10px rgba(122, 73, 41, .18);
+  opacity: 0;
+  transform: translate3d(-50%, 4px, 0) scale(.9);
+  animation: scorePopupFloat 900ms cubic-bezier(.24, .84, .24, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
 .status-id {
   flex: 1 1 auto;
   max-width: calc(100% - 36px);
@@ -450,6 +498,29 @@ button {
   font-size: 14px;
   font-weight: 900;
   color: #2f84c8;
+}
+
+.status-progress {
+  display: flex;
+  width: 64px;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(170, 126, 86, .28);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .35);
+}
+
+.status-progress-fill {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #53c4ff, #2f86df);
+  transition: width 260ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.status-side.right .status-progress {
+  justify-content: flex-end;
 }
 
 .status-hearts {
@@ -581,6 +652,12 @@ button {
   color: #ffffff;
   background: linear-gradient(180deg, #7adf98, #38b56a);
   box-shadow: inset 0 -2px 0 rgba(35, 121, 71, .35);
+}
+
+.tile-grid .cell.appearing {
+  opacity: 0;
+  animation: boardCellAppear 300ms cubic-bezier(.22, .88, .22, 1) both;
+  animation-delay: calc(var(--appear-order, 0) * 24ms);
 }
 
 .bottom-dock {
@@ -1197,6 +1274,36 @@ button {
   }
 }
 
+@keyframes scorePopupFloat {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 4px, 0) scale(.9);
+  }
+  15% {
+    opacity: 1;
+    transform: translate3d(-50%, 0, 0) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate3d(-50%, -10px, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, -16px, 0) scale(.98);
+  }
+}
+
+@keyframes boardCellAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(5px) scale(.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 460px) {
   .app-shell {
     width: 100vw;
@@ -1237,6 +1344,11 @@ button {
     font-size: 12px;
   }
 
+  .status-progress {
+    width: 54px;
+    height: 7px;
+  }
+
   .status-hearts {
     gap: 3px;
   }
@@ -1250,6 +1362,10 @@ button {
   .status-timer {
     font-size: 16px;
     min-width: 56px;
+  }
+
+  .hud-target {
+    font-size: 18px;
   }
 
   .battle-surface {

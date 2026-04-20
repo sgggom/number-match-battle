@@ -1,4 +1,4 @@
-const app = document.querySelector('#app');
+﻿const app = document.querySelector('#app');
 const lobbyScreen = document.querySelector('#lobby-screen');
 const gameScreen = document.querySelector('#game-screen');
 const battleScreen = document.querySelector('#battle-screen');
@@ -17,8 +17,9 @@ const hintToolBtn = document.querySelector('#hint-tool-btn');
 const battleStatusBar = document.querySelector('#battle-status-bar');
 const playerScoreEl = document.querySelector('#player-score');
 const opponentScoreEl = document.querySelector('#opponent-score');
-const playerHeartsEl = document.querySelector('#player-hearts');
-const opponentHeartsEl = document.querySelector('#opponent-hearts');
+const playerProgressFillEl = document.querySelector('#player-progress-fill');
+const opponentProgressFillEl = document.querySelector('#opponent-progress-fill');
+const battleTargetEl = document.querySelector('#battle-target');
 const battleTimerEl = document.querySelector('#battle-timer');
 const loseOverlay = document.querySelector('#battle-lose-overlay');
 const loseWinsEl = document.querySelector('#lose-wins');
@@ -43,6 +44,23 @@ const INITIAL_NUMBERS = 35;
 const MAX_BOARD_CELLS = BOARD_COLS * BOARD_ROWS;
 const MATCHING_MS = 3000;
 const PLUS_TOOL_MAX_USES = 5;
+const BOT_SCORE_TICK_MS = 2000;
+const BATTLE_GOAL_OPTIONS = [
+  { targetScore: 200, timeLimitSec: 6 * 60 },
+  { targetScore: 400, timeLimitSec: 12 * 60 },
+];
+
+const SCORE_RULES = {
+  adjacent: 1,
+  straightGap: 3,
+  diagonalGap: 4,
+  edgePair: 5,
+  lineClear: 12,
+  perfectX1: 3,
+  perfectX2: 6,
+  perfectX3: 9,
+  boardClear: 135,
+};
 
 const BOT_DIFFICULTY_CONFIG = {
   high: {
@@ -91,6 +109,7 @@ let battleClockTimer = null;
 let botActionTimer = null;
 let playerBubbleTimer = null;
 let opponentBubbleTimer = null;
+let scorePopupLayer = null;
 let boardTouchActive = false;
 let boardTouchMoved = false;
 let boardTouchStartY = 0;
@@ -103,14 +122,170 @@ function formatTime(totalSeconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function renderPlusStock(targetEl, usedCount) {
-  if (!targetEl) return;
-  const used = Math.max(0, Math.min(PLUS_TOOL_MAX_USES, usedCount));
-  const icons = Array.from({ length: PLUS_TOOL_MAX_USES }, (_, idx) => {
-    const spent = idx < used ? 'is-spent' : '';
-    return `<span class="status-plus-icon ${spent}" aria-hidden="true">+</span>`;
-  }).join('');
-  targetEl.innerHTML = icons;
+function pickBattleGoalOption() {
+  const index = Math.floor(Math.random() * BATTLE_GOAL_OPTIONS.length);
+  return BATTLE_GOAL_OPTIONS[index];
+}
+
+function getPairDistance(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  return Math.max(Math.abs(a.row - b.row), Math.abs(a.col - b.col));
+}
+
+function isDiagonalPair(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  return Math.abs(a.row - b.row) === Math.abs(a.col - b.col) && a.row !== b.row;
+}
+
+function isStraightPair(indexA, indexB) {
+  const a = indexToRowCol(indexA);
+  const b = indexToRowCol(indexB);
+  return (a.row === b.row && a.col !== b.col) || (a.col === b.col && a.row !== b.row);
+}
+
+function countFullyEmptyRows(values) {
+  let count = 0;
+  for (let row = 0; row < BOARD_ROWS; row += 1) {
+    let allEmpty = true;
+    for (let col = 0; col < BOARD_COLS; col += 1) {
+      if (values[rowColToIndex(row, col)] !== null) {
+        allEmpty = false;
+        break;
+      }
+    }
+    if (allEmpty) count += 1;
+  }
+  return count;
+}
+
+function getStageMultiplier() {
+  if (!state.battle || !state.battle.stage) return 1;
+  return Math.max(1, state.battle.stage);
+}
+
+function ensureScorePopupLayer() {
+  if (!gameScreen) return null;
+  if (scorePopupLayer && scorePopupLayer.isConnected) return scorePopupLayer;
+
+  scorePopupLayer = gameScreen.querySelector('.score-popups');
+  if (scorePopupLayer) return scorePopupLayer;
+
+  scorePopupLayer = document.createElement('div');
+  scorePopupLayer.className = 'score-popups';
+  gameScreen.appendChild(scorePopupLayer);
+  return scorePopupLayer;
+}
+
+function getFallbackScoreOrigin() {
+  if (!gameScreen) return { x: 0, y: 0 };
+  const gameRect = gameScreen.getBoundingClientRect();
+  if (!boardViewport) return { x: gameRect.width / 2, y: gameRect.height / 2 };
+
+  const boardRect = boardViewport.getBoundingClientRect();
+  return {
+    x: boardRect.left - gameRect.left + (boardRect.width / 2),
+    y: boardRect.top - gameRect.top + Math.min(80, boardRect.height / 2),
+  };
+}
+
+function setScoreOriginFromPointer(event) {
+  if (!state.battle || !gameScreen) return;
+  if (!event) {
+    state.battle.lastScoreOrigin = getFallbackScoreOrigin();
+    return;
+  }
+
+  const gameRect = gameScreen.getBoundingClientRect();
+  const clickedCell = event.target && event.target.closest ? event.target.closest('.cell') : null;
+
+  let x = 0;
+  let y = 0;
+  if (clickedCell) {
+    const cellRect = clickedCell.getBoundingClientRect();
+    x = (cellRect.left + (cellRect.width / 2)) - gameRect.left;
+    y = (cellRect.top + (cellRect.height / 2)) - gameRect.top;
+  } else if (typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+    x = event.clientX - gameRect.left;
+    y = event.clientY - gameRect.top;
+  } else {
+    const fallback = getFallbackScoreOrigin();
+    x = fallback.x;
+    y = fallback.y;
+  }
+
+  x = Math.min(Math.max(x, 12), Math.max(12, gameRect.width - 12));
+  y = Math.min(Math.max(y, 12), Math.max(12, gameRect.height - 12));
+  state.battle.lastScoreOrigin = { x, y };
+}
+
+function showScorePopup(score) {
+  if (!state.battleMode || !state.battle || state.battle.ended) return;
+  const layer = ensureScorePopupLayer();
+  if (!layer) return;
+
+  const origin = state.battle.lastScoreOrigin || getFallbackScoreOrigin();
+  const popup = document.createElement('span');
+  popup.className = 'score-popup';
+  popup.textContent = `+${score}`;
+  popup.style.left = `${origin.x}px`;
+  popup.style.top = `${origin.y}px`;
+  layer.appendChild(popup);
+
+  setTimeout(() => {
+    popup.remove();
+  }, 1100);
+}
+
+function addPlayerScore(baseScore) {
+  if (!state.battle || state.battle.ended) return;
+  const multiplied = baseScore * getStageMultiplier();
+  state.battle.playerScore += multiplied;
+  showScorePopup(multiplied);
+}
+
+function addOpponentScore(baseScore) {
+  if (!state.battle || state.battle.ended) return;
+  state.battle.opponentScore += baseScore;
+}
+
+function getPerfectBonusByStreak(streak) {
+  const level = Math.max(1, Math.min(3, streak));
+  if (level === 1) return SCORE_RULES.perfectX1;
+  if (level === 2) return SCORE_RULES.perfectX2;
+  return SCORE_RULES.perfectX3;
+}
+
+function applyPairScore(indexA, indexB, beforePairValues, afterPairValues) {
+  const edgePair = isCrossRowEdgePair(indexA, indexB);
+  const distance = getPairDistance(indexA, indexB);
+  const beforeEmptyRows = countFullyEmptyRows(beforePairValues);
+  const afterEmptyRows = countFullyEmptyRows(afterPairValues);
+  const newlyClearedRows = Math.max(0, afterEmptyRows - beforeEmptyRows);
+
+  let totalBaseScore = 0;
+
+  if (edgePair) {
+    totalBaseScore += SCORE_RULES.edgePair;
+  } else if (isDiagonalPair(indexA, indexB) && distance >= 2) {
+    totalBaseScore += SCORE_RULES.diagonalGap;
+  } else if (isStraightPair(indexA, indexB) && distance >= 2) {
+    totalBaseScore += SCORE_RULES.straightGap;
+  } else {
+    totalBaseScore += SCORE_RULES.adjacent;
+  }
+
+  if (newlyClearedRows > 0) {
+    totalBaseScore += (newlyClearedRows * SCORE_RULES.lineClear);
+  }
+
+  if (state.battle && !state.battle.ended) {
+    state.battle.comboStreak = Math.min(3, (state.battle.comboStreak || 0) + 1);
+    totalBaseScore += getPerfectBonusByStreak(state.battle.comboStreak);
+  }
+
+  addPlayerScore(totalBaseScore);
 }
 
 function updatePlusToolButton() {
@@ -212,13 +387,17 @@ function getRemainingCount() {
 
 function updateBattleStatusUI() {
   if (!state.battleMode || !state.battle) return;
-  const { playerRemaining, opponentRemaining, playerPlusUses, opponentPlusUses, elapsedSec } = state.battle;
+  const { playerScore, opponentScore, targetScore, remainingSec } = state.battle;
+  const denominator = Math.max(1, targetScore);
+  const playerPercent = Math.min(100, Math.max(0, (playerScore / denominator) * 100));
+  const opponentPercent = Math.min(100, Math.max(0, (opponentScore / denominator) * 100));
 
-  if (playerScoreEl) playerScoreEl.textContent = String(playerRemaining);
-  if (opponentScoreEl) opponentScoreEl.textContent = String(opponentRemaining);
-  renderPlusStock(playerHeartsEl, playerPlusUses);
-  renderPlusStock(opponentHeartsEl, opponentPlusUses);
-  if (battleTimerEl) battleTimerEl.textContent = formatTime(elapsedSec);
+  if (playerScoreEl) playerScoreEl.textContent = `${playerScore}/${targetScore}`;
+  if (opponentScoreEl) opponentScoreEl.textContent = `${opponentScore}/${targetScore}`;
+  if (playerProgressFillEl) playerProgressFillEl.style.width = `${playerPercent}%`;
+  if (opponentProgressFillEl) opponentProgressFillEl.style.width = `${opponentPercent}%`;
+  if (battleTargetEl) battleTargetEl.textContent = `Target ${targetScore}`;
+  if (battleTimerEl) battleTimerEl.textContent = formatTime(remainingSec);
   updatePlusToolButton();
 }
 
@@ -226,6 +405,7 @@ function setBattleMode(active) {
   state.battleMode = active;
   gameScreen.classList.toggle('battle-mode', active);
   if (battleStatusBar) battleStatusBar.setAttribute('aria-hidden', active ? 'false' : 'true');
+  if (!active && battleTargetEl) battleTargetEl.textContent = 'Target --';
 
   if (!active) {
     state.battle = null;
@@ -254,68 +434,30 @@ function finishBattle(winner) {
   updateBattleStatusUI();
 }
 
-function applyBotPlus() {
-  if (!state.battle || state.battle.ended) return false;
-  if (state.battle.opponentPlusUses >= PLUS_TOOL_MAX_USES) return false;
-  const remaining = state.battle.opponentRemaining;
-  let chance = 0;
-
-  if (remaining === 1) {
-    chance = 1;
-  } else if (remaining >= 2 && remaining <= 5) {
-    chance = 0.3;
-  } else if (remaining >= 6 && remaining <= 15) {
-    chance = 0.25;
-  } else if (remaining >= 16 && remaining <= 25) {
-    chance = 0.2;
-  } else {
-    return false;
-  }
-
-  if (Math.random() >= chance) return false;
-
-  const capacityLeft = Math.max(0, MAX_BOARD_CELLS - state.battle.opponentRemaining);
-  if (capacityLeft <= 0) return false;
-
-  const addCount = Math.min(state.battle.opponentRemaining, capacityLeft);
-  if (addCount <= 0) return false;
-
-  state.battle.opponentRemaining += addCount;
-  state.battle.opponentPlusUses += 1;
-  showPlusBubble('opponent');
-  return true;
-}
-
 function runBotTurn() {
   if (!state.battleMode || !state.battle || state.battle.ended) return;
-
-  const config = BOT_DIFFICULTY_CONFIG[state.botDifficulty] || BOT_DIFFICULTY_CONFIG.medium;
-
-  if (applyBotPlus()) {
-    updateBattleStatusUI();
-    return;
-  }
-
-  state.battle.opponentRemaining = Math.max(0, state.battle.opponentRemaining - 2);
-  if (state.battle.opponentRemaining === 0) {
+  addOpponentScore(1);
+  if (state.battle.opponentScore >= state.battle.targetScore) {
     finishBattle('opponent');
     return;
   }
-
   updateBattleStatusUI();
 }
 
 function startBattleSession() {
-  const initialTotal = getRemainingCount();
-  const config = BOT_DIFFICULTY_CONFIG[state.botDifficulty] || BOT_DIFFICULTY_CONFIG.medium;
+  const goal = pickBattleGoalOption();
 
   state.battle = {
-    initialTotal,
-    playerRemaining: initialTotal,
-    opponentRemaining: initialTotal,
+    targetScore: goal.targetScore,
+    timeLimitSec: goal.timeLimitSec,
+    remainingSec: goal.timeLimitSec,
+    stage: 1,
+    playerScore: 0,
+    opponentScore: 0,
+    comboStreak: 0,
     playerPlusUses: 0,
     opponentPlusUses: 0,
-    elapsedSec: 0,
+    lastScoreOrigin: null,
     ended: false,
     winner: null,
   };
@@ -325,28 +467,47 @@ function startBattleSession() {
 
   battleClockTimer = setInterval(() => {
     if (!state.battleMode || !state.battle || state.battle.ended) return;
-    state.battle.elapsedSec += 1;
+    state.battle.remainingSec = Math.max(0, state.battle.remainingSec - 1);
+    if (state.battle.remainingSec === 0) {
+      if (state.battle.playerScore > state.battle.opponentScore) finishBattle('player');
+      else finishBattle('opponent');
+      return;
+    }
     updateBattleStatusUI();
   }, 1000);
 
   botActionTimer = setInterval(() => {
     runBotTurn();
-  }, config.tickMs);
+  }, BOT_SCORE_TICK_MS);
 }
 
 function syncPlayerBattleProgress() {
   if (!state.battleMode || !state.battle || state.battle.ended) return;
-  state.battle.playerRemaining = getRemainingCount();
-  if (state.battle.playerRemaining === 0) {
+  if (state.battle.playerScore >= state.battle.targetScore) {
     finishBattle('player');
     return;
   }
+
+  const remaining = getRemainingCount();
+  if (remaining === 0) {
+    addPlayerScore(SCORE_RULES.boardClear);
+    if (state.battle.playerScore >= state.battle.targetScore) {
+      finishBattle('player');
+      return;
+    }
+
+    state.battle.stage += 1;
+    initializeBoardValues();
+    if (boardViewport) boardViewport.scrollTop = 0;
+    renderBoardValues({ animateIndexes: new Set(getFilledIndexes(state.values)) });
+  }
+
   updateBattleStatusUI();
 }
 
 function applyPlayerMistake() {
-  // Battle mode no longer has mistake-limit defeat; keep board interaction behavior unchanged.
   if (!state.battleMode || !state.battle || state.battle.ended) return;
+  state.battle.comboStreak = 0;
 }
 
 function updateMatchTimerText() {
@@ -433,19 +594,37 @@ function initializeBoardValues() {
   state.boardInitialized = true;
 }
 
-function renderBoardValues() {
+function getFilledIndexes(values) {
+  const indexes = [];
+  for (let i = 0; i < values.length; i += 1) {
+    if (values[i] !== null) indexes.push(i);
+  }
+  return indexes;
+}
+
+function renderBoardValues(options = {}) {
   if (!tileGrid) return;
   const cells = tileGrid.querySelectorAll('.cell');
+  const animateIndexes = options.animateIndexes || null;
+  let appearOrder = 0;
 
   for (let i = 0; i < cells.length; i += 1) {
     const cell = cells[i];
     const value = state.values[i];
     const isSelected = state.selectedIndex === i;
     const isHinted = state.hintIndexes.includes(i);
+    const shouldAnimate = Boolean(animateIndexes && animateIndexes.has(i) && value !== null);
 
     cell.classList.toggle('filled', value !== null);
     cell.classList.toggle('selected', isSelected);
     cell.classList.toggle('hinted', isHinted);
+    cell.classList.toggle('appearing', shouldAnimate);
+    if (shouldAnimate) {
+      cell.style.setProperty('--appear-order', String(appearOrder));
+      appearOrder += 1;
+    } else {
+      cell.style.removeProperty('--appear-order');
+    }
     cell.textContent = value === null ? '' : String(value);
     cell.setAttribute('aria-label', value === null ? '空格' : `数字 ${value}`);
   }
@@ -522,12 +701,17 @@ function canPair(indexA, indexB) {
   const valueA = state.values[indexA];
   const valueB = state.values[indexB];
   if (valueA === null || valueB === null) return false;
-  if (!(valueA === valueB || valueA + valueB === 10)) return false;
+  if (!isValuePairCompatible(valueA, valueB)) return false;
 
   if (isCrossRowEdgePair(indexA, indexB)) return true;
   if (!isLineAligned(indexA, indexB)) return false;
 
   return hasNoBlockingNumbers(indexA, indexB);
+}
+
+function isValuePairCompatible(valueA, valueB) {
+  if (valueA === null || valueB === null) return false;
+  return valueA === valueB || valueA + valueB === 10;
 }
 
 function collapseClearedRows() {
@@ -583,16 +767,18 @@ function duplicateRemainingNumbersAtTail(source = 'player') {
   const remaining = getRemainingNumbers();
   if (remaining.length === 0) return;
 
+  const appendedIndexes = [];
   let insertIndex = getLastFilledIndex() + 1;
   for (const value of remaining) {
     if (insertIndex >= state.values.length) break;
     state.values[insertIndex] = value;
+    appendedIndexes.push(insertIndex);
     insertIndex += 1;
   }
 
   state.selectedIndex = null;
   state.hintIndexes = [];
-  renderBoardValues();
+  renderBoardValues({ animateIndexes: new Set(appendedIndexes) });
 
   if (state.battleMode && state.battle && !state.battle.ended && source === 'player') {
     state.battle.playerPlusUses += 1;
@@ -689,8 +875,11 @@ function handleBoardClick(event) {
 
   const selected = state.selectedIndex;
   if (canPair(selected, index)) {
+    setScoreOriginFromPointer(event);
+    const beforePairValues = state.values.slice();
     state.values[selected] = null;
     state.values[index] = null;
+    applyPairScore(selected, index, beforePairValues, state.values);
     collapseClearedRows();
     state.selectedIndex = null;
     renderBoardValues();
@@ -698,7 +887,9 @@ function handleBoardClick(event) {
     return;
   }
 
-  applyPlayerMistake();
+  if (isValuePairCompatible(state.values[selected], value)) {
+    applyPlayerMistake();
+  }
   state.selectedIndex = index;
   renderBoardValues();
 }
@@ -710,7 +901,7 @@ function enterGame(isBattleMode) {
   showScreen('game');
   updateBoardMetrics();
   if (boardViewport) boardViewport.scrollTop = 0;
-  renderBoardValues();
+  renderBoardValues({ animateIndexes: new Set(getFilledIndexes(state.values)) });
   if (isBattleMode) startBattleSession();
 }
 
