@@ -44,11 +44,62 @@ const INITIAL_NUMBERS = 35;
 const MAX_BOARD_CELLS = BOARD_COLS * BOARD_ROWS;
 const MATCHING_MS = 3000;
 const PLUS_TOOL_MAX_USES = 5;
-const BOT_SCORE_TICK_MS = 2000;
-const BATTLE_GOAL_OPTIONS = [
-  { targetScore: 200, timeLimitSec: 6 * 60 },
-  { targetScore: 400, timeLimitSec: 12 * 60 },
-];
+const ROBOT_IDS = ['id1', 'id2', 'id3', 'id4', 'id5'];
+const ROBOT_SCORE_CONFIG = {
+  global_round_rules: {
+    formation_pool_ids: [1, 2, 3],
+    draw_check_interval_seconds: 1.5,
+    draw_trigger_probability: 0.8,
+    opening_draw_rules: {
+      draw_1_allowed_scores: [1],
+      draw_2_allowed_scores: [1, 3],
+    },
+  },
+  robots: {
+    score_200: {
+      target_score: 200,
+      countdown_seconds: 360,
+      probability_score_pool: [1, 3, 4, 5, 6, 9, 12, 17, 21],
+      subsequent_draw_score_pool: [1, 3, 4, 5, 6, 9, 12, 17, 21],
+      subsequent_draw_rules: {
+        must_keep_target_reachable: true,
+        can_draw_135: false,
+        max_135_per_round: 0,
+      },
+      time_buckets: [
+        { elapsed_seconds: { start: 0, end: 10 }, target_score_range_by_id: { id1: { min: 6, max: 8 }, id2: { min: 4, max: 6 }, id3: { min: 2, max: 4 }, id4: { min: 2, max: 3 }, id5: { min: 1, max: 2 } }, normal_score_probabilities: [0.35, 0.35, 0.3, 0, 0, 0, 0, 0, 0] },
+        { elapsed_seconds: { start: 11, end: 50 }, target_score_range_by_id: { id1: { min: 32, max: 38 }, id2: { min: 27, max: 33 }, id3: { min: 22, max: 26 }, id4: { min: 18, max: 22 }, id5: { min: 12, max: 17 } }, normal_score_probabilities: [0.21, 0.3, 0.2, 0.15, 0.12, 0, 0.02, 0, 0] },
+        { elapsed_seconds: { start: 51, end: 90 }, target_score_range_by_id: { id1: { min: 75, max: 85 }, id2: { min: 63, max: 73 }, id3: { min: 50, max: 60 }, id4: { min: 40, max: 48 }, id5: { min: 28, max: 36 } }, normal_score_probabilities: [0.3, 0.21, 0.1, 0.1, 0.11, 0.11, 0.05, 0.01, 0.01] },
+        { elapsed_seconds: { start: 91, end: 120 }, target_score_range_by_id: { id1: { min: 118, max: 130 }, id2: { min: 98, max: 112 }, id3: { min: 78, max: 92 }, id4: { min: 58, max: 72 }, id5: { min: 40, max: 50 } }, normal_score_probabilities: [0.2, 0.2, 0.14, 0.1, 0.05, 0.1, 0.1, 0.1, 0.01] },
+        { elapsed_seconds: { start: 121, end: 180 }, target_score_range_by_id: { id1: { min: 162, max: 176 }, id2: { min: 138, max: 152 }, id3: { min: 112, max: 128 }, id4: { min: 82, max: 98 }, id5: { min: 52, max: 68 } }, normal_score_probabilities: [0.2, 0.1, 0.14, 0.11, 0.1, 0.1, 0.14, 0.1, 0.01] },
+        { elapsed_seconds: { start: 181, end: 300 }, target_score_range_by_id: { id1: { min: 200, max: 200 }, id2: { min: 185, max: 195 }, id3: { min: 165, max: 175 }, id4: { min: 125, max: 138 }, id5: { min: 88, max: 102 } }, normal_score_probabilities: [0.14, 0.15, 0.11, 0.1, 0.1, 0.1, 0.15, 0.1, 0.05] },
+        { elapsed_seconds: { start: 301, end: 360 }, target_score_range_by_id: { id1: null, id2: { min: 200, max: 200 }, id3: { min: 200, max: 200 }, id4: { min: 172, max: 188 }, id5: { min: 103, max: 200 } }, normal_score_probabilities: [0.13, 0.14, 0.1, 0.1, 0.09, 0.1, 0.15, 0.11, 0.08] },
+      ],
+    },
+    score_400: {
+      target_score: 400,
+      countdown_seconds: 720,
+      probability_score_pool: [1, 3, 4, 5, 6, 9, 12, 17, 21],
+      subsequent_draw_score_pool: [1, 3, 4, 5, 6, 9, 12, 17, 21, 135],
+      subsequent_draw_rules: {
+        must_keep_target_reachable: true,
+        can_draw_135: true,
+        max_135_per_round: 1,
+      },
+      time_buckets: [
+        { elapsed_seconds: { start: 0, end: 10 }, target_score_range_by_id: { id1: { min: 6, max: 8 }, id2: { min: 4, max: 6 }, id3: { min: 2, max: 4 }, id4: { min: 2, max: 3 }, id5: { min: 1, max: 2 } }, normal_score_probabilities: [0.35, 0.35, 0.3, 0, 0, 0, 0, 0, 0] },
+        { elapsed_seconds: { start: 11, end: 50 }, target_score_range_by_id: { id1: { min: 32, max: 38 }, id2: { min: 27, max: 33 }, id3: { min: 22, max: 26 }, id4: { min: 18, max: 22 }, id5: { min: 12, max: 17 } }, normal_score_probabilities: [0.21, 0.3, 0.2, 0.15, 0.12, 0, 0.02, 0, 0] },
+        { elapsed_seconds: { start: 51, end: 90 }, target_score_range_by_id: { id1: { min: 75, max: 85 }, id2: { min: 63, max: 73 }, id3: { min: 50, max: 60 }, id4: { min: 40, max: 48 }, id5: { min: 28, max: 36 } }, normal_score_probabilities: [0.3, 0.21, 0.1, 0.1, 0.11, 0.11, 0.05, 0.01, 0.01] },
+        { elapsed_seconds: { start: 91, end: 120 }, target_score_range_by_id: { id1: { min: 118, max: 130 }, id2: { min: 98, max: 112 }, id3: { min: 78, max: 92 }, id4: { min: 58, max: 72 }, id5: { min: 40, max: 50 } }, normal_score_probabilities: [0.2, 0.2, 0.14, 0.1, 0.05, 0.1, 0.1, 0.1, 0.01] },
+        { elapsed_seconds: { start: 121, end: 180 }, target_score_range_by_id: { id1: { min: 162, max: 176 }, id2: { min: 138, max: 152 }, id3: { min: 112, max: 128 }, id4: { min: 82, max: 98 }, id5: { min: 52, max: 68 } }, normal_score_probabilities: [0.2, 0.1, 0.14, 0.11, 0.1, 0.1, 0.14, 0.1, 0.01] },
+        { elapsed_seconds: { start: 181, end: 300 }, target_score_range_by_id: { id1: { min: 200, max: 200 }, id2: { min: 185, max: 195 }, id3: { min: 165, max: 175 }, id4: { min: 125, max: 138 }, id5: { min: 88, max: 102 } }, normal_score_probabilities: [0.14, 0.15, 0.11, 0.1, 0.1, 0.1, 0.15, 0.1, 0.05] },
+        { elapsed_seconds: { start: 301, end: 480 }, target_score_range_by_id: { id1: null, id2: { min: 200, max: 200 }, id3: { min: 200, max: 200 }, id4: { min: 172, max: 188 }, id5: { min: 120, max: 138 } }, normal_score_probabilities: [0.13, 0.14, 0.1, 0.1, 0.09, 0.1, 0.15, 0.11, 0.08] },
+        { elapsed_seconds: { start: 481, end: 720 }, target_score_range_by_id: { id1: null, id2: { min: 200, max: 200 }, id3: { min: 200, max: 200 }, id4: { min: 172, max: 188 }, id5: { min: 120, max: 138 } }, normal_score_probabilities: [0.13, 0.14, 0.1, 0.1, 0.09, 0.1, 0.15, 0.11, 0.08] },
+      ],
+    },
+  },
+};
+const BOT_SCORE_TICK_MS = Math.round(ROBOT_SCORE_CONFIG.global_round_rules.draw_check_interval_seconds * 1000);
 
 const SCORE_RULES = {
   adjacent: 1,
@@ -60,21 +111,6 @@ const SCORE_RULES = {
   perfectX2: 6,
   perfectX3: 9,
   boardClear: 135,
-};
-
-const BOT_DIFFICULTY_CONFIG = {
-  high: {
-    tickMs: 1000,
-    canMistake: false,
-  },
-  medium: {
-    tickMs: 1000,
-    canMistake: true,
-  },
-  low: {
-    tickMs: 10000,
-    canMistake: true,
-  },
 };
 
 const state = {
@@ -94,7 +130,7 @@ const state = {
     losses: 0,
     streak: 0,
   },
-  botDifficulty: 'medium',
+  selectedRobotId: 'id3',
   board: {
     cols: BOARD_COLS,
     rows: BOARD_ROWS,
@@ -122,9 +158,116 @@ function formatTime(totalSeconds) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-function pickBattleGoalOption() {
-  const index = Math.floor(Math.random() * BATTLE_GOAL_OPTIONS.length);
-  return BATTLE_GOAL_OPTIONS[index];
+function pickRobotTypeForRound() {
+  return Math.random() < 0.5 ? 'score_200' : 'score_400';
+}
+
+function getRobotRules(robotType) {
+  return ROBOT_SCORE_CONFIG.robots[robotType] || ROBOT_SCORE_CONFIG.robots.score_200;
+}
+
+function getTimeBucketByElapsed(robotRules, elapsedSec) {
+  const buckets = robotRules.time_buckets || [];
+  for (let i = 0; i < buckets.length; i += 1) {
+    if (elapsedSec <= buckets[i].elapsed_seconds.end) return buckets[i];
+  }
+  return buckets[buckets.length - 1] || null;
+}
+
+function weightedPick(values, weights) {
+  let total = 0;
+  for (let i = 0; i < weights.length; i += 1) {
+    total += Math.max(0, weights[i]);
+  }
+  if (total <= 0) return values[Math.floor(Math.random() * values.length)];
+
+  let r = Math.random() * total;
+  for (let i = 0; i < values.length; i += 1) {
+    r -= Math.max(0, weights[i]);
+    if (r <= 0) return values[i];
+  }
+  return values[values.length - 1];
+}
+
+function getFutureConstrainedBuckets(robotRules, elapsedSec, selectedId) {
+  return (robotRules.time_buckets || []).filter((bucket) => {
+    if (bucket.elapsed_seconds.end < elapsedSec) return false;
+    const range = bucket.target_score_range_by_id[selectedId];
+    return range !== null && range !== undefined;
+  });
+}
+
+function getMaxPerFutureDraw(robotRules, battle) {
+  const maxNormal = Math.max(...robotRules.subsequent_draw_score_pool.filter((score) => score !== 135));
+  const canUse135 = robotRules.subsequent_draw_rules.can_draw_135
+    && battle.botDraw135Count < robotRules.subsequent_draw_rules.max_135_per_round;
+  return canUse135 ? 135 : maxNormal;
+}
+
+function isBotScoreReachableAfterDraw(candidateScore, battle, robotRules) {
+  if (!robotRules.subsequent_draw_rules.must_keep_target_reachable) return true;
+
+  const nextScore = battle.opponentScore + candidateScore;
+  const interval = ROBOT_SCORE_CONFIG.global_round_rules.draw_check_interval_seconds;
+  const futureBuckets = getFutureConstrainedBuckets(robotRules, battle.botElapsedSec, battle.selectedRobotId);
+  const maxPerDraw = getMaxPerFutureDraw(robotRules, battle);
+
+  for (let i = 0; i < futureBuckets.length; i += 1) {
+    const bucket = futureBuckets[i];
+    const range = bucket.target_score_range_by_id[battle.selectedRobotId];
+    const remainingSeconds = Math.max(0, bucket.elapsed_seconds.end - battle.botElapsedSec);
+    const remainingChecks = Math.floor(remainingSeconds / interval);
+    const minPossible = nextScore;
+    const maxPossible = nextScore + (remainingChecks * maxPerDraw);
+    if (maxPossible < range.min || minPossible > range.max) return false;
+  }
+
+  return true;
+}
+
+function getBotOpeningScore(battle) {
+  const robotRules = getRobotRules(battle.robotType);
+  if (battle.botActualDrawCount === 0) {
+    return isBotScoreReachableAfterDraw(1, battle, robotRules) ? 1 : 0;
+  }
+  if (battle.botActualDrawCount === 1) {
+    const candidates = [1, 3].filter((score) => isBotScoreReachableAfterDraw(score, battle, robotRules));
+    if (candidates.length === 0) return 0;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+  return null;
+}
+
+function chooseBotSubsequentScore(battle) {
+  const robotRules = getRobotRules(battle.robotType);
+  const bucket = getTimeBucketByElapsed(robotRules, battle.botElapsedSec);
+  if (!bucket) return 0;
+
+  let candidatePool = robotRules.subsequent_draw_score_pool.filter((score) => {
+    if (score !== 135) return true;
+    return robotRules.subsequent_draw_rules.can_draw_135
+      && battle.botDraw135Count < robotRules.subsequent_draw_rules.max_135_per_round;
+  });
+
+  candidatePool = candidatePool.filter((score) => isBotScoreReachableAfterDraw(score, battle, robotRules));
+  if (candidatePool.length === 0) return 0;
+
+  const basePool = robotRules.probability_score_pool;
+  const probs = bucket.normal_score_probabilities || [];
+  const weights = candidatePool.map((score) => {
+    const idx = basePool.indexOf(score);
+    if (idx >= 0) return probs[idx] || 0;
+    if (score === 135) return 0.01;
+    return 0;
+  });
+
+  return weightedPick(candidatePool, weights);
+}
+
+function drawBotScore(battle) {
+  const openingScore = getBotOpeningScore(battle);
+  if (openingScore !== null) return openingScore;
+  return chooseBotSubsequentScore(battle);
 }
 
 function getPairDistance(indexA, indexB) {
@@ -436,7 +579,28 @@ function finishBattle(winner) {
 
 function runBotTurn() {
   if (!state.battleMode || !state.battle || state.battle.ended) return;
-  addOpponentScore(1);
+  const battle = state.battle;
+  const globalRules = ROBOT_SCORE_CONFIG.global_round_rules;
+
+  battle.botElapsedSec = Math.min(
+    battle.timeLimitSec,
+    battle.botElapsedSec + globalRules.draw_check_interval_seconds,
+  );
+
+  if (Math.random() > globalRules.draw_trigger_probability) {
+    updateBattleStatusUI();
+    return;
+  }
+
+  const drawScore = drawBotScore(battle);
+  if (drawScore <= 0) {
+    updateBattleStatusUI();
+    return;
+  }
+
+  battle.botActualDrawCount += 1;
+  if (drawScore === 135) battle.botDraw135Count += 1;
+  addOpponentScore(drawScore);
   if (state.battle.opponentScore >= state.battle.targetScore) {
     finishBattle('opponent');
     return;
@@ -445,16 +609,25 @@ function runBotTurn() {
 }
 
 function startBattleSession() {
-  const goal = pickBattleGoalOption();
+  const robotType = pickRobotTypeForRound();
+  const robotRules = getRobotRules(robotType);
+  const formations = ROBOT_SCORE_CONFIG.global_round_rules.formation_pool_ids;
+  const formationPoolId = formations[Math.floor(Math.random() * formations.length)];
 
   state.battle = {
-    targetScore: goal.targetScore,
-    timeLimitSec: goal.timeLimitSec,
-    remainingSec: goal.timeLimitSec,
+    targetScore: robotRules.target_score,
+    timeLimitSec: robotRules.countdown_seconds,
+    remainingSec: robotRules.countdown_seconds,
     stage: 1,
     playerScore: 0,
     opponentScore: 0,
     comboStreak: 0,
+    robotType,
+    formationPoolId,
+    selectedRobotId: state.selectedRobotId,
+    botElapsedSec: 0,
+    botActualDrawCount: 0,
+    botDraw135Count: 0,
     playerPlusUses: 0,
     opponentPlusUses: 0,
     lastScoreOrigin: null,
@@ -543,11 +716,11 @@ function startRematchFlow() {
   startMatching();
 }
 
-function setBotDifficulty(level) {
-  if (!BOT_DIFFICULTY_CONFIG[level]) return;
-  state.botDifficulty = level;
+function setSelectedRobotId(robotId) {
+  if (!ROBOT_IDS.includes(robotId)) return;
+  state.selectedRobotId = robotId;
   difficultyBtns.forEach((btn) => {
-    btn.classList.toggle('is-active', btn.dataset.difficulty === level);
+    btn.classList.toggle('is-active', btn.dataset.botId === robotId);
   });
 }
 
@@ -935,7 +1108,7 @@ if (victoryNewGameBtn) victoryNewGameBtn.addEventListener('click', () => startRe
 if (victoryHomeBtn) victoryHomeBtn.addEventListener('click', () => showScreen('battle'));
 
 difficultyBtns.forEach((btn) => {
-  btn.addEventListener('click', () => setBotDifficulty(btn.dataset.difficulty));
+  btn.addEventListener('click', () => setSelectedRobotId(btn.dataset.botId));
 });
 
 window.render_game_to_text = () => JSON.stringify({
@@ -950,7 +1123,7 @@ window.render_game_to_text = () => JSON.stringify({
   remainingNumbers: getRemainingCount(),
   battleMode: state.battleMode,
   battle: state.battle,
-  botDifficulty: state.botDifficulty,
+  selectedRobotId: state.selectedRobotId,
   matching: state.matching,
 });
 
@@ -964,7 +1137,7 @@ window.addEventListener('resize', () => {
 });
 
 showScreen('lobby');
-setBotDifficulty(state.botDifficulty);
+setSelectedRobotId(state.selectedRobotId);
 buildBoardCells();
 initializeBoardValues();
 updateBoardMetrics();
